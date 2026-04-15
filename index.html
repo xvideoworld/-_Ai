@@ -3,27 +3,647 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BD AI - Premium Platform</title>
+    <title>রিয়েলিস্টিক টাকা ক্যাচার - Photo-Realistic</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', sans-serif; background: radial-gradient(circle, #1a1a1c 0%, #050505 100%); color: #e3e3e3; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
-        
-        /* গ্লসি সেটাপ বক্স */
-        #setup { background: rgba(30, 31, 32, 0.8); backdrop-filter: blur(10px); padding: 40px; border-radius: 30px; text-align: center; border: 1px solid rgba(255,255,255,0.1); width: 92%; max-width: 420px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
-        h2 { font-size: 32px; margin-bottom: 10px; background: linear-gradient(to right, #8ab4f8, #c2e7ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .gender-btn { width: 100%; padding: 16px; margin: 12px 0; border-radius: 15px; border: none; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.4s ease; text-transform: uppercase; letter-spacing: 1px; }
-        .male-btn { background: linear-gradient(135deg, #0052D1, #00A3FF); color: white; box-shadow: 0 5px 15px rgba(0, 163, 255, 0.3); }
-        .female-btn { background: linear-gradient(135deg, #8E2DE2, #4A00E0); color: white; box-shadow: 0 5px 15px rgba(142, 45, 226, 0.3); }
-        .gender-btn:hover { transform: scale(1.03); filter: brightness(1.2); }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #000;
+            overflow: hidden;
+            height: 100vh;
+        }
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .hud {
+            position: absolute;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(15px);
+            border-radius: 15px;
+            padding: 20px;
+            color: #fff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        #scoreHud {
+            top: 20px;
+            left: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        #timeHud {
+            top: 20px;
+            right: 20px;
+            font-size: 20px;
+        }
+        .controls {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            pointer-events: all;
+        }
+        .ctrl-btn {
+            width: 80px;
+            height: 80px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(145deg, rgba(255,255,255,0.25), rgba(255,255,255,0.1));
+            backdrop-filter: blur(20px);
+            color: #fff;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            border: 3px solid rgba(255,255,255,0.3);
+            transition: all 0.3s ease;
+        }
+        .ctrl-btn:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 20px 45px rgba(255,215,0,0.4);
+        }
+        .ctrl-btn.active {
+            background: linear-gradient(145deg, rgba(255,215,0,0.6), rgba(255,165,0,0.4));
+            box-shadow: 0 15px 35px rgba(255,215,0,0.6);
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.95);
+            backdrop-filter: blur(25px);
+            color: #fff;
+            padding: 50px;
+            border-radius: 25px;
+            text-align: center;
+            display: none;
+            border: 3px solid #FFD700;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.8);
+        }
+        #restartBtn {
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            border: none;
+            padding: 20px 50px;
+            font-size: 24px;
+            border-radius: 35px;
+            color: #333;
+            cursor: pointer;
+            margin-top: 25px;
+            font-weight: bold;
+            box-shadow: 0 15px 35px rgba(255,215,0,0.5);
+            transition: all 0.3s;
+        }
+        #restartBtn:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="ui">
+            <div id="scoreHud" class="hud">বালতি: ০ ₹</div>
+            <div id="timeHud" class="hud">সময়: ৬০s</div>
+            
+            <div class="controls">
+                <button class="ctrl-btn" id="leftCtrl">←</button>
+                <button class="ctrl-btn" id="catchCtrl">🤲</button>
+                <button class="ctrl-btn" id="rightCtrl">→</button>
+                <button class="ctrl-btn" id="magnetCtrl">🧲</button>
+            </div>
+            
+            <div id="gameOver">
+                <h2 style="font-size: 36px; margin-bottom: 20px; text-shadow: 0 0 20px #FFD700;">
+                    🏆 গেম সম্পন্ন!
+                </h2>
+                <p style="font-size: 28px; margin-bottom: 30px;">
+                    চূড়ান্ত স্কোর: <span id="finalScore" style="color: #FFD700; font-size: 36px;">0</span> ₹
+                </p>
+                <button id="restartBtn" onclick="restartGame()">নতুন গেম শুরু করুন</button>
+            </div>
+        </div>
+    </div>
 
-        /* প্রিমিয়াম চ্যাট কন্টেইনার */
-        #chat-container { width: 100%; max-width: 900px; height: 100vh; display: none; flex-direction: column; background: transparent; }
-        #chat-box { flex: 1; overflow-y: auto; padding: 30px; display: flex; flex-direction: column; gap: 25px; }
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        // Three.js সিন
+        let scene, camera, renderer, bucket, coins = [], trees = [], animals = [], particles = [];
+        let gameState = {
+            score: 0,
+            timeLeft: 60,
+            gameSpeed: 1,
+            magnetActive: false,
+            gameRunning: true,
+            gameTime: 0
+        };
         
-        .message { max-width: 80%; padding: 15px 20px; border-radius: 22px; line-height: 1.6; font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); animation: slideIn 0.3s ease-out; }
-        .user-message { align-self: flex-end; background: #303134; color: #fff; border-bottom-right-radius: 4px; border: 1px solid #444; }
-        .ai-message { align-self: flex-start; background: rgba(66, 133, 244, 0.1); color: #e3e3e3; border-left: 4px solid #8ab4f8; border-radius: 4px 22px 22px 22px; }
-        
-        /* ইনপুট এরিয়া */
-        .input-area { padding: 25px; background: rgba(15, 16, 18, 0.9); display: flex; align-items: center; gap: 15px; border-top: 1px solid #222; }
-        #user-input { flex: 1; background: #1e1f2
+        let bucketMesh, bucketPosition = { x: 0, z: -2 };
+        let catchCooldown = 0;
+
+        // ইনিশিয়ালাইজ
+        function init() {
+            // সিন
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x87CEEB, 10, 100);
+            
+            // ক্যামেরা
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 4, 8);
+            camera.lookAt(0, 1, 0);
+            
+            // রেন্ডারার
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            document.getElementById('gameContainer').appendChild(renderer.domElement);
+            
+            // লাইটিং (রিয়েলিস্টিক)
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            directionalLight.position.set(10, 20, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 50;
+            directionalLight.shadow.camera.left = -10;
+            directionalLight.shadow.camera.right = 10;
+            directionalLight.shadow.camera.top = 10;
+            directionalLight.shadow.camera.bottom = -10;
+            scene.add(directionalLight);
+            
+            // সূর্য
+            const sunGeometry = new THREE.SphereGeometry(0.5);
+            const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xFFD700 });
+            const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+            sun.position.set(10, 20, -10);
+            scene.add(sun);
+            
+            // গ্রাউন্ড (রিয়েল গ্রাস টেক্সচার)
+            const groundGeometry = new THREE.PlaneGeometry(100, 100);
+            const groundTexture = createGrassTexture();
+            const groundMaterial = new THREE.MeshLambertMaterial({ map: groundTexture });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            // বালতি তৈরি
+            createRealisticBucket();
+            
+            // গাছ তৈরি
+            createRealisticTrees();
+            
+            // কন্ট্রোল ইভেন্ট
+            setupControls();
+            
+            // রিসাইজ
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        // রিয়েল গ্রাস টেক্সচার
+        function createGrassTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // গ্রাস প্যাটার্ন
+            for(let i = 0; i < 1000; i++) {
+                ctx.fillStyle = `hsl(${40 + Math.random()*20}, ${70 + Math.random()*20}%, ${30 + Math.random()*20}%)`;
+                ctx.fillRect(
+                    Math.random() * 512,
+                    Math.random() * 512,
+                    2 + Math.random() * 4,
+                    10 + Math.random() * 20
+                );
+            }
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(10, 10);
+            return texture;
+        }
+
+        // রিয়েলিস্টিক বালতি
+        function createRealisticBucket() {
+            const group = new THREE.Group();
+            
+            // বালতি বডি (PBR)
+            const bucketGeometry = new THREE.CylinderGeometry(0.6, 0.8, 1.2, 32);
+            const bucketTexture = createMetalTexture('#DAA520', '#B8860B');
+            const bucketMaterial = new THREE.MeshStandardMaterial({ 
+                map: bucketTexture,
+                metalness: 0.8,
+                roughness: 0.2
+            });
+            bucketMesh = new THREE.Mesh(bucketGeometry, bucketMaterial);
+            bucketMesh.position.y = 0.6;
+            bucketMesh.castShadow = true;
+            group.add(bucketMesh);
+            
+            // হ্যান্ডেল
+            const handleGeometry = new THREE.TorusGeometry(0.7, 0.05, 8, 20);
+            const handleMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x654321,
+                metalness: 0.9,
+                roughness: 0.1
+            });
+            const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+            handle.rotation.z = Math.PI / 2;
+            handle.position.x = 0.9;
+            handle.position.y = 0.8;
+            handle.castShadow = true;
+            group.add(handle);
+            
+            // হাত
+            const handGeometry = new THREE.BoxGeometry(0.3, 1.5, 0.4);
+            const handTexture = createSkinTexture();
+            const handMaterial = new THREE.MeshStandardMaterial({ 
+                map: handTexture,
+                metalness: 0,
+                roughness: 0.8
+            });
+            const hand = new THREE.Mesh(handGeometry, handMaterial);
+            hand.position.set(-0.8, 1.2, 0);
+            hand.castShadow = true;
+            group.add(hand);
+            
+            group.position.copy(bucketPosition);
+            group.castShadow = true;
+            scene.add(group);
+            bucket = group;
+        }
+
+        // মেটাল টেক্সচার
+        function createMetalTexture(baseColor, darkColor) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            // মেটালিক গ্রেইন
+            for(let i = 0; i < 5000; i++) {
+                const gradient = ctx.createRadialGradient(
+                    Math.random() * 256,
+                    Math.random() * 256,
+                    0,
+                    Math.random() * 256,
+                    Math.random() * 256,
+                    20
+                );
+                gradient.addColorStop(0, baseColor);
+                gradient.addColorStop(1, darkColor);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(
+                    Math.random() * 256,
+                    Math.random() * 256,
+                    5 + Math.random() * 10,
+                    5 + Math.random() * 10
+                );
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // স্কিন টেক্সচার
+        function createSkinTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#FDBCB4';
+            ctx.fillRect(0, 0, 128, 128);
+            
+            // ফ্রেকলস + পোরস
+            for(let i = 0; i < 200; i++) {
+                ctx.fillStyle = `rgba(0,0,0,${Math.random()*0.3})`;
+                ctx.beginPath();
+                ctx.arc(Math.random()*128, Math.random()*128, 0.5 + Math.random()*2, 0, Math.PI*2);
+                ctx.fill();
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // রিয়েলিস্টিক গাছ
+        function createRealisticTrees() {
+            for(let i = 0; i < 15; i++) {
+                const treeGroup = new THREE.Group();
+                const height = 4 + Math.random() * 3;
+                
+                // ট্রাঙ্ক
+                const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.4, height, 12);
+                const trunkTexture = createBarkTexture();
+                const trunkMaterial = new THREE.MeshStandardMaterial({ 
+                    map: trunkTexture,
+                    color: 0x8B4513
+                });
+                const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+                trunk.position.y = height / 2;
+                trunk.castShadow = true;
+                trunk.receiveShadow = true;
+                treeGroup.add(trunk);
+                
+                // পাতা (ক্লাউড-লাইক)
+                const leavesGeometry = new THREE.SphereGeometry(2.5, 12, 8);
+                const leavesTexture = createLeafTexture();
+                const leavesMaterial = new THREE.MeshStandardMaterial({ 
+                    map: leavesTexture,
+                    color: 0x228B22,
+                    transparent: true,
+                    alphaTest: 0.5
+                });
+                const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+                leaves.position.y = height + 1;
+                leaves.castShadow = true;
+                treeGroup.add(leaves);
+                
+                treeGroup.position.set(
+                    (i - 7) * 8 + Math.sin(i) * 2,
+                    0,
+                    -15 - Math.random() * 20
+                );
+                scene.add(treeGroup);
+                trees.push(treeGroup);
+            }
+        }
+
+        function createBarkTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(0, 0, 256, 256);
+            
+            // বার্ক প্যাটার্ন
+            ctx.strokeStyle = '#654321';
+            ctx.lineWidth = 3;
+            for(let i = 0; i < 50; i++) {
+                ctx.beginPath();
+                ctx.moveTo(Math.random()*256, 0);
+                ctx.quadraticCurveTo(
+                    Math.random()*256,
+                    Math.random()*256,
+                    Math.random()*256,
+                    256
+                );
+                ctx.stroke();
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createLeafTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            
+            const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 80);
+            gradient.addColorStop(0, 'rgba(34,139,34,1)');
+            gradient.addColorStop(0.7, 'rgba(0,100,0,0.8)');
+            gradient.addColorStop(1, 'rgba(0,50,0,0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 128, 128);
+            
+            // লেফ ভেইনস
+            ctx.strokeStyle = 'rgba(20,80,20,0.8)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(64, 0);
+            ctx.lineTo(64, 128);
+            ctx.stroke();
+            for(let i = 0; i < 8; i++) {
+                ctx.beginPath();
+                ctx.moveTo(64, 20 + i*13);
+                ctx.quadraticCurveTo(20 + i*5, 40 + i*10, 10, 50 + i*12);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(64, 20 + i*13);
+                ctx.quadraticCurveTo(108 - i*5, 40 + i*10, 118, 50 + i*12);
+                ctx.stroke();
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // কয়েন তৈরি
+        function createCoin() {
+            const coinGroup = new THREE.Group();
+            
+            // কয়েন
+            const coinGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.03, 32);
+            const coinMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xFFD700,
+                metalness: 1,
+                roughness: 0.1
+            });
+            const coin = new THREE.Mesh(coinGeometry, coinMaterial);
+            coin.castShadow = true;
+            coinGroup.add(coin);
+            
+            // গ্লো
+            const glowGeometry = new THREE.SphereGeometry(0.25, 16, 12);
+            const glowMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xFFFFAA,
+                transparent: true,
+                opacity: 0.6
+            });
+            const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+            coinGroup.add(glow);
+            
+            coinGroup.position.set(
+                (Math.random() - 0.5) * 12,
+                8 + Math.random() * 2,
+                -25 - Math.random() * 10
+            );
+            coinGroup.userData = { vy: -0.1 - Math.random() * 0.05, vx: (Math.random() - 0.5) * 0.02, rot: 0 };
+            scene.add(coinGroup);
+            coins.push(coinGroup);
+        }
+
+        // কন্ট্রোল সেটআপ
+        function setupControls() {
+            document.getElementById('leftCtrl').onclick = () => bucketPosition.x -= 0.8;
+            document.getElementById('rightCtrl').onclick = () => bucketPosition.x += 0.8;
+            document.getElementById('catchCtrl').onclick = catchCoins;
+            document.getElementById('magnetCtrl').onclick = toggleMagnet;
+        }
+
+        // কয়েন ক্যাচ
+        function catchCoins() {
+            if (catchCooldown > 0) return;
+            catchCooldown = 10;
+            
+            const bucketBox = new THREE.Box3().setFromObject(bucket);
+            coins.forEach((coin, i) => {
+                const coinBox = new THREE.Box3().setFromObject(coin);
+                if (bucketBox.intersectsBox(coinBox)) {
+                    gameState.score += 10;
+                    particles.push(createParticle(coin.position));
+                    scene.remove(coin);
+                    coins.splice(i, 1);
+                }
+            });
+        }
+
+        function toggleMagnet() {
+            gameState.magnetActive = !gameState.magnetActive;
+            document.getElementById('magnetCtrl').classList.toggle('active', gameState.magnetActive);
+        }
+
+        function createParticle(pos) {
+            const particleGeometry = new THREE.SphereGeometry(0.05);
+            const particleMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xFFD700,
+                transparent: true 
+            });
+            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+            particle.position.copy(pos);
+            particle.userData = { 
+                vx: (Math.random() - 0.5) * 0.2,
+                vy: Math.random() * 0.2,
+                vz: (Math.random() - 0.5) * 0.1,
+                life: 60
+            };
+            scene.add(particle);
+            return particle;
+        }
+
+        // আপডেট
+        function update() {
+            if (!gameState.gameRunning) return;
+            
+            gameState.gameTime += 1/60;
+            gameState.timeLeft = Math.max(0, 60 - gameState.gameTime);
+            gameState.gameSpeed = 1 + gameState.gameTime * 0.2;
+            
+            // বালতি মুভমেন্ট
+            bucket.position.lerp(bucketPosition, 0.15);
+            bucket.position.x = Math.max(-4, Math.min(4, bucket.position.x));
+            
+            // কয়েন আপডেট
+            coins.forEach((coin, i) => {
+                coin.userData.vy += 0.002 * gameState.gameSpeed;
+                coin.position.y += coin.userData.vy * gameState.gameSpeed;
+                coin.position.x += coin.userData.vx * gameState.gameSpeed;
+                coin.rotation.y += 0.1;
+                
+                if (gameState.magnetActive) {
+                    const dir = new THREE.Vector3()
+                        .subVectors(bucket.position, coin.position)
+                        .normalize();
+                    coin.position.add(dir.multiplyScalar(0.05));
+                }
+                
+                if (coin.position.y < -5) {
+                    scene.remove(coin);
+                    coins.splice(i, 1);
+                }
+            });
+            
+            // পার্টিকেল
+            particles.forEach((p, i) => {
+                p.userData.life--;
+                p.position.x += p.userData.vx;
+                p.position.y += p.userData.vy;
+                p.position.z += p.userData.vz;
+                p.material.opacity = p.userData.life / 60;
+                
+                if (p.userData.life <= 0) {
+                    scene.remove(p);
+                    particles.splice(i, 1);
+                }
+            });
+            
+            // গাছ মুভমেন্ট
+            trees.forEach(tree => {
+                tree.position.z += 0.1 * gameState.gameSpeed;
+                if (tree.position.z > 10) {
+                    tree.position.z = -30;
+                    tree.position.x = (Math.random() - 0.5) * 20;
+                }
+            });
+            
+            // নতুন কয়েন
+            if (Math.random() < 0.2 + gameState.gameSpeed * 0.01) {
+                createCoin();
+            }
+            
+            // UI
+            document.getElementById('scoreHud').textContent = `বালতি: ${gameState.score} ₹`;
+            document.getElementById('timeHud').textContent = `সময়: ${Math.ceil(gameState.timeLeft)}s`;
+            
+            catchCooldown = Math.max(0, catchCooldown - 1);
+            
+            // গেম ওভার
+            if (gameState.timeLeft <= 0) {
+                gameState.gameRunning = false;
+                document.getElementById('finalScore').textContent = gameState.score;
+                document.getElementById('gameOver').style.display = 'block';
+            }
+        }
+
+        // অ্যানিমেট
+        function animate() {
+            requestAnimationFrame(animate);
+            update();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.restartGame = function() {
+            // রিসেট
+            gameState = {
+                score: 0,
+                timeLeft: 60,
+                gameSpeed: 1,
+                magnetActive: false,
+                gameRunning: true,
+                gameTime: 0
+            };
+            bucketPosition = { x: 0, z: -2 };
+            coins.forEach(coin => scene.remove(coin));
+            particles.forEach(p => scene.remove(p));
+            coins.length = 0;
+            particles.length = 0;
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('magnetCtrl').classList.remove('active');
+            catchCooldown = 0;
+        };
+
+        // স্টার্ট
+        init();
+    </script>
+</body>
+    </html>
