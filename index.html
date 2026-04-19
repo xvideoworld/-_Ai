@@ -1,213 +1,434 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>🏃 Running Game - GTA Style</title>
+    <title>🏃‍♂️ 3D Running Man Game - Complete Graphics</title>
     <style>
-        body { margin: 0; background: #222; font-family: Arial; overflow: hidden; }
+        body { 
+            margin: 0; 
+            background: linear-gradient(to bottom, #87CEEB 0%, #98D8C8 100%);
+            font-family: 'Arial Black'; 
+            overflow: hidden; 
+            cursor: none;
+        }
         canvas { display: block; }
         #ui { 
-            position: absolute; top: 20px; left: 20px; color: white; 
-            font-size: 24px; text-shadow: 2px 2px 4px #000; z-index: 100;
+            position: fixed; top: 20px; left: 20px; color: #fff; 
+            font-size: 28px; text-shadow: 3px 3px 6px #000; z-index: 1000;
+            background: rgba(0,0,0,0.5); padding: 15px; border-radius: 10px;
         }
         #stamina { 
-            position: absolute; bottom: 20px; left: 20px; width: 300px; height: 30px;
-            background: rgba(0,0,0,0.7); border: 2px solid #fff; z-index: 100;
+            position: fixed; bottom: 30px; left: 30px; width: 350px; height: 40px;
+            background: rgba(0,0,0,0.8); border: 3px solid #00ff88; 
+            border-radius: 20px; z-index: 1000; overflow: hidden;
         }
         #stamina-fill { 
-            height: 100%; background: linear-gradient(90deg, #ff4444, #44ff44);
-            width: 100%; transition: width 0.3s; 
+            height: 100%; background: linear-gradient(90deg, #ff4444, #ffaa00, #44ff44);
+            width: 100%; transition: width 0.2s ease; box-shadow: 0 0 20px #00ff88;
         }
         #instructions {
-            position: absolute; bottom: 20px; right: 20px; color: #ccc;
-            font-size: 16px; text-align: right; z-index: 100;
+            position: fixed; bottom: 30px; right: 30px; color: #fff;
+            font-size: 18px; text-align: right; z-index: 1000;
+            background: rgba(0,0,0,0.7); padding: 20px; border-radius: 15px;
+        }
+        #crosshair {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+            width: 30px; height: 30px; border: 3px solid #fff; 
+            border-radius: 50%; z-index: 1000; pointer-events: none;
+            box-shadow: 0 0 20px #fff;
+        }
+        #pause {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+            background: rgba(0,0,0,0.9); color: #fff; padding: 50px;
+            border-radius: 20px; text-align: center; display: none; z-index: 2000;
+            font-size: 24px;
         }
     </style>
 </head>
 <body>
+    <!-- UI Elements -->
     <div id="ui">
-        <div>Speed: <span id="speed">0</span> km/h</div>
-        <div>Score: <span id="score">0</span></div>
+        <div>🏃 Speed: <span id="speed">0</span> km/h</div>
+        <div>⭐ Score: <span id="score">0</span></div>
+        <div>🎯 Enemies: <span id="enemies">0</span></div>
     </div>
+    
     <div id="stamina">
         <div id="stamina-fill"></div>
     </div>
+    
+    <div id="crosshair"></div>
+    
     <div id="instructions">
-        WASD: Move | SHIFT: Run | SPACE: Jump<br>
-        ESC: Pause | R: Reset
+        <strong>🎮 CONTROLS</strong><br>
+        WASD: Move | SHIFT: Sprint<br>
+        SPACE: Jump | MOUSE: Look<br>
+        CLICK: Catch Enemy (+100 pts)<br>
+        ESC or P: Pause | R: Reset
+    </div>
+    
+    <div id="pause">
+        <h2>⏸️ PAUSED</h2>
+        <p>Press ESC or P to continue</p>
+        <button onclick="resetGame()" style="font-size:20px;padding:15px;">🔄 Reset Game</button>
     </div>
 
+    <!-- Three.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    
     <script>
-        // === 3D RUNNING GAME ENGINE ===
-        let scene, camera, renderer, player, ground;
-        let keys = {}, mouse = { x: 0, y: 0 };
-        let velocity = { x: 0, z: 0, y: 0 };
-        let stamina = 100, score = 0, isGrounded = true;
-        let gamePaused = false;
+        // === COMPLETE 3D RUNNING MAN GAME ===
+        let scene, camera, renderer, player, enemies = [];
+        let keys = {}, mouse = { x: 0, y: 0, locked: false };
+        let gameState = {
+            velocity: { x: 0, z: 0, y: 0 },
+            stamina: 100, score: 0, enemiesCount: 0,
+            isGrounded: true, gamePaused: false,
+            playerYaw: 0, playerPitch: 0
+        };
         
-        // Init
-        init();
-        animate();
+        // Initialize Game
+        initGame();
+        spawnEnemies();
+        gameLoop();
         
-        function init() {
-            // Scene
+        function initGame() {
+            // Scene Setup
             scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0x87CEEB, 50, 500);
+            scene.fog = new THREE.FogExp2(0x87CEEB, 0.005);
             
-            // Camera
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 8, 15);
+            // HD Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(0, 6, 12);
             
-            // Renderer
-            renderer = new THREE.WebGLRenderer({ antialias: true });
+            // Renderer with shadows
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
             document.body.appendChild(renderer.domElement);
             
-            // Player (Capsule)
-            const playerGeo = new THREE.CapsuleGeometry(0.5, 2, 4, 8);
-            const playerMat = new THREE.MeshLambertMaterial({ color: 0xff4444 });
-            player = new THREE.Mesh(playerGeo, playerMat);
-            player.position.y = 2;
-            player.castShadow = true;
+            // === PLAYER CHARACTER (MAN) ===
+            const playerGroup = new THREE.Group();
+            
+            // Body
+            const bodyGeo = new THREE.CylinderGeometry(0.4, 0.6, 1.8, 8);
+            const bodyMat = new THREE.MeshLambertMaterial({ color: 0xFF6B6B });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 1;
+            body.castShadow = true;
+            playerGroup.add(body);
+            
+            // Head
+            const headGeo = new THREE.SphereGeometry(0.35, 16, 16);
+            const headMat = new THREE.MeshLambertMaterial({ color: 0xFFE66D });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 2.2;
+            head.castShadow = true;
+            playerGroup.add(head);
+            
+            // Arms
+            const armGeo = new THREE.CylinderGeometry(0.12, 0.15, 0.8, 8);
+            const armMat = new THREE.MeshLambertMaterial({ color: 0x4ECDC4 });
+            const leftArm = new THREE.Mesh(armGeo, armMat);
+            leftArm.position.set(-0.6, 1.3, 0);
+            leftArm.rotation.z = 0.3;
+            const rightArm = leftArm.clone();
+            rightArm.position.x = 0.6;
+            rightArm.rotation.z = -0.3;
+            playerGroup.add(leftArm, rightArm);
+            
+            // Legs
+            const legGeo = new THREE.CylinderGeometry(0.15, 0.18, 1, 8);
+            const legMat = new THREE.MeshLambertMaterial({ color: 0x45B7D1 });
+            const leftLeg = new THREE.Mesh(legGeo, legMat);
+            leftLeg.position.set(-0.25, 0, 0);
+            const rightLeg = leftLeg.clone();
+            rightLeg.position.x = 0.25;
+            playerGroup.add(leftLeg, rightLeg);
+            
+            player = playerGroup;
+            player.position.y = 1;
             scene.add(player);
             
-            // Ground
-            const groundGeo = new THREE.PlaneGeometry(500, 500);
-            const groundMat = new THREE.MeshLambertMaterial({ color: 0x90EE90 });
-            ground = new THREE.Mesh(groundGeo, groundMat);
+            // Ground (Grass)
+            const groundGeo = new THREE.PlaneGeometry(1000, 1000);
+            const groundMat = new THREE.MeshLambertMaterial({ 
+                color: 0x90EE90,
+                transparent: true,
+                opacity: 0.9
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
             ground.rotation.x = -Math.PI / 2;
             ground.receiveShadow = true;
             scene.add(ground);
             
-            // City Buildings
-            for(let i=0; i<100; i++) {
-                const building = new THREE.Mesh(
-                    new THREE.BoxGeometry(5+Math.random()*10, 10+Math.random()*40, 5+Math.random()*10),
-                    new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff })
-                );
-                building.position.set(
-                    (Math.random()-0.5)*400, building.geometry.parameters.height/2,
-                    (Math.random()-0.5)*400
-                );
-                building.castShadow = true;
-                scene.add(building);
-            }
+            // City Environment (GTA Style)
+            createCity();
             
-            // Lights
-            const ambient = new THREE.AmbientLight(0x404040, 0.6);
+            // Skybox
+            const skyGeo = new THREE.SphereGeometry(1000, 32, 32);
+            const skyMat = new THREE.MeshBasicMaterial({ 
+                color: 0x87CEEB, 
+                side: THREE.BackSide 
+            });
+            scene.add(new THREE.Mesh(skyGeo, skyMat));
+            
+            // Lighting
+            const ambient = new THREE.AmbientLight(0xFFFFFF, 0.6);
             scene.add(ambient);
-            const sun = new THREE.DirectionalLight(0xffffff, 1);
-            sun.position.set(50, 100, 50);
+            
+            const sun = new THREE.DirectionalLight(0xFFD700, 1.2);
+            sun.position.set(100, 150, 100);
             sun.castShadow = true;
-            sun.shadow.mapSize.width = 2048;
-            sun.shadow.mapSize.height = 2048;
+            sun.shadow.mapSize.width = 4096;
+            sun.shadow.mapSize.height = 4096;
+            sun.shadow.camera.near = 0.5;
+            sun.shadow.camera.far = 500;
+            sun.shadow.camera.left = -200;
+            sun.shadow.camera.right = 200;
+            sun.shadow.camera.top = 200;
+            sun.shadow.camera.bottom = -200;
             scene.add(sun);
             
-            // Events
-            document.addEventListener('keydown', onKeyDown);
-            document.addEventListener('keyup', onKeyUp);
+            // Input Events
+            setupControls();
+        }
+        
+        function createCity() {
+            for(let i = 0; i < 150; i++) {
+                const height = 8 + Math.random() * 40;
+                const building = new THREE.Mesh(
+                    new THREE.BoxGeometry(
+                        6 + Math.random() * 12,
+                        height,
+                        6 + Math.random() * 12
+                    ),
+                    new THREE.MeshLambertMaterial({
+                        color: new THREE.Color().setHSL(Math.random() * 0.1 + 0.5, 0.7, 0.5)
+                    })
+                );
+                building.position.set(
+                    (Math.random() - 0.5) * 800,
+                    height / 2,
+                    (Math.random() - 0.5) * 800
+                );
+                building.castShadow = true;
+                building.receiveShadow = true;
+                scene.add(building);
+            }
+        }
+        
+        function setupControls() {
+            document.addEventListener('keydown', (e) => keys[e.code] = true);
+            document.addEventListener('keyup', (e) => keys[e.code] = false);
             document.addEventListener('mousemove', onMouseMove);
-            window.addEventListener('resize', onResize);
+            document.addEventListener('click', lockPointer);
+            window.addEventListener('resize', onWindowResize);
+            
+            function lockPointer() {
+                renderer.domElement.requestPointerLock();
+            }
+            
+            function onMouseMove(e) {
+                if (document.pointerLockElement === renderer.domElement) {
+                    gameState.playerYaw -= e.movementX * 0.002;
+                    gameState.playerPitch -= e.movementY * 0.002;
+                    gameState.playerPitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, gameState.playerPitch));
+                }
+            }
         }
         
-        function animate() {
-            requestAnimationFrame(animate);
+        function gameLoop() {
+            requestAnimationFrame(gameLoop);
             
-            if(!gamePaused) updateGame();
-            renderer.render(scene, camera);
+            if (!gameState.gamePaused) {
+                updatePlayer();
+                updateEnemies();
+                updateUI();
+            }
+            
+            renderScene();
         }
         
-        function updateGame() {
-            // Input
-            const speed = keys['ShiftLeft'] ? 0.3 : 0.15;
-            const forward = keys['KeyW'] ? 1 : 0;
-            const backward = keys['KeyS'] ? -1 : 0;
-            const left = keys['KeyA'] ? -1 : 0;
-            const right = keys['KeyD'] ? 1 : 0;
-            
+        function updatePlayer() {
             // Movement
-            const moveX = (left + right) * speed;
-            const moveZ = (forward + backward) * speed;
+            const moveSpeed = keys['ShiftLeft'] && gameState.stamina > 10 ? 0.4 : 0.2;
+            const forward = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
+            const strafe = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
             
-            velocity.x += (moveX - velocity.x) * 0.1;
-            velocity.z += (moveZ - velocity.z) * 0.1;
+            const moveX = strafe * moveSpeed;
+            const moveZ = forward * moveSpeed;
+            
+            // Apply rotation
+            const worldX = (Math.sin(gameState.playerYaw) * moveX) + (Math.cos(gameState.playerYaw) * moveZ);
+            const worldZ = (Math.cos(gameState.playerYaw) * moveX) - (Math.sin(gameState.playerYaw) * moveZ);
+            
+            gameState.velocity.x += (worldX - gameState.velocity.x) * 0.15;
+            gameState.velocity.z += (worldZ - gameState.velocity.z) * 0.15;
             
             // Jump
-            if(keys['Space'] && isGrounded) {
-                velocity.y = 0.25;
-                isGrounded = false;
+            if (keys['Space'] && gameState.isGrounded) {
+                gameState.velocity.y = 0.35;
+                gameState.isGrounded = false;
             }
             
             // Gravity
-            velocity.y -= 0.015;
-            player.position.x += velocity.x;
-            player.position.z += velocity.z;
-            player.position.y += velocity.y;
+            gameState.velocity.y -= 0.02;
+            
+            // Position update
+            player.position.x += gameState.velocity.x;
+            player.position.z += gameState.velocity.z;
+            player.position.y += gameState.velocity.y;
+            player.rotation.y = gameState.playerYaw;
             
             // Ground collision
-            if(player.position.y <= 1) {
-                player.position.y = 1;
-                velocity.y = 0;
-                isGrounded = true;
+            if (player.position.y <= 1.5) {
+                player.position.y = 1.5;
+                gameState.velocity.y = 0;
+                gameState.isGrounded = true;
             }
             
             // Stamina
-            if(keys['ShiftLeft'] && stamina > 0) {
-                stamina -= 0.5;
+            if (keys['ShiftLeft'] && gameState.stamina > 0) {
+                gameState.stamina -= 1.2;
             } else {
-                stamina = Math.min(100, stamina + 0.3);
+                gameState.stamina = Math.min(100, gameState.stamina + 0.8);
             }
             
-            // Camera follow
-            const idealOffset = new THREE.Vector3(0, 8, 15);
-            const camTarget = player.position.clone();
-            camTarget.y += 2;
-            camera.lookAt(camTarget);
-            
-            // Score
-            score += Math.floor(Math.sqrt(Math.abs(velocity.x)+Math.abs(velocity.z))*10);
-            
-            // UI Update
-            document.getElementById('speed').textContent = Math.floor(Math.sqrt(velocity.x*velocity.x + velocity.z*velocity.z)*100);
-            document.getElementById('score').textContent = score;
-            document.getElementById('stamina-fill').style.width = stamina + '%';
-            
-            // Reset
-            if(keys['KeyR']) resetGame();
+            // Score based on movement
+            gameState.score += Math.floor(Math.sqrt(gameState.velocity.x**2 + gameState.velocity.z**2) * 20);
         }
         
-        function onKeyDown(e) { keys[e.code] = true; }
-        function onKeyUp(e) { keys[e.code] = false; }
-        function onMouseMove(e) { 
-            if(document.pointerLockElement === renderer.domElement) {
-                player.rotation.y -= e.movementX * 0.002;
+        function spawnEnemies() {
+            gameState.enemiesCount = 15;
+            for (let i = 0; i < gameState.enemiesCount; i++) {
+                const enemy = createEnemy();
+                enemies.push(enemy);
+                scene.add(enemy.mesh);
             }
         }
-        function onResize() {
+        
+        function createEnemy() {
+            const enemyGroup = new THREE.Group();
+            
+            // Enemy body (Green monster)
+            const bodyGeo = new THREE.SphereGeometry(0.8, 12, 12);
+            const bodyMat = new THREE.MeshLambertMaterial({ color: 0x44FF44 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 1;
+            body.castShadow = true;
+            enemyGroup.add(body);
+            
+            // Eyes
+            const eyeGeo = new THREE.SphereGeometry(0.15, 8, 8);
+            const eyeMat = new THREE.MeshLambertMaterial({ color: 0xFF0000 });
+            const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+            leftEye.position.set(-0.3, 1.2, 0.7);
+            const rightEye = leftEye.clone();
+            rightEye.position.x = 0.3;
+            enemyGroup.add(leftEye, rightEye);
+            
+            // Random spawn position
+            enemyGroup.position.set(
+                (Math.random() - 0.5) * 200,
+                1.5,
+                (Math.random() - 0.5) * 200
+            );
+            
+            return {
+                mesh: enemyGroup,
+                velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.02,
+                    0,
+                    (Math.random() - 0.5) * 0.02
+                ),
+                caught: false
+            };
+        }
+        
+        function updateEnemies() {
+            enemies.forEach((enemy, index) => {
+                if (enemy.caught) return;
+                
+                // Move towards player
+                const dir = new THREE.Vector3()
+                    .subVectors(player.position, enemy.mesh.position)
+                    .normalize()
+                    .multiplyScalar(0.008);
+                
+                enemy.mesh.position.add(dir);
+                enemy.mesh.lookAt(player.position);
+                
+                // Catch detection
+                const distance = player.position.distanceTo(enemy.mesh.position);
+                if (distance < 2.5 && mouse.locked) {
+                    scene.remove(enemy.mesh);
+                    enemy.caught = true;
+                    gameState.score += 100;
+                    gameState.enemiesCount--;
+                    
+                    // Respawn
+                    setTimeout(() => {
+                        const newEnemy = createEnemy();
+                        enemies[index] = newEnemy;
+                        scene.add(newEnemy.mesh);
+                    }, 2000);
+                }
+            });
+        }
+        
+        function updateUI() {
+            document.getElementById('speed').textContent = 
+                Math.floor(Math.sqrt(gameState.velocity.x**2 + gameState.velocity.z**2) * 250);
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('enemies').textContent = gameState.enemiesCount;
+            document.getElementById('stamina-fill').style.width = gameState.stamina + '%';
+        }
+        
+        function renderScene() {
+            // Smooth camera follow
+            const idealCamPos = new THREE.Vector3(0, 6, 12).applyEuler(
+                new THREE.Euler(gameState.playerPitch, gameState.playerYaw, 0)
+            );
+            camera.position.lerp(
+                player.position.clone().add(idealCamPos), 
+                0.08
+            );
+            camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 2, 0)));
+            
+            renderer.render(scene, camera);
+        }
+        
+        function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
         
-        function resetGame() {
-            player.position.set(0,1,0);
-            velocity = {x:0,y:0,z:0};
-            stamina = 100;
-            score = 0;
-        }
+        // Global functions for HTML buttons
+        window.resetGame = function() {
+            player.position.set(0, 1.5, 0);
+            gameState = { ...gameState, velocity: {x:0,y:0,z:0}, score: 0, stamina: 100 };
+            enemies.forEach(e => scene.remove(e.mesh));
+            enemies = [];
+            spawnEnemies();
+        };
         
-        // Pointer Lock
-        renderer.domElement.addEventListener('click', () => {
-            renderer.domElement.requestPointerLock();
+        // Pause Toggle
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Escape' || e.code === 'KeyP') {
+                gameState.gamePaused = !gameState.gamePaused;
+                document.getElementById('pause').style.display = 
+                    gameState.gamePaused ? 'block' : 'none';
+            }
+            if (e.code === 'KeyR') resetGame();
         });
         
-        document.addEventListener('keydown', (e) => {
-            if(e.code === 'Escape') {
-                document.exitPointerLock();
-            }
+        document.addEventListener('pointerlockchange', () => {
+            mouse.locked = document.pointerLockElement === renderer.domElement;
         });
     </script>
 </body>
-    </html>
+</html>
