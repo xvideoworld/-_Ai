@@ -1,367 +1,201 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>🏃‍♂️ 3D Running Man Game - ANIMATED CHARACTER</title>
+    <title>🏃‍♂️ Running Game (Button Control)</title>
     <style>
-        body { 
-            margin: 0; 
-            background: linear-gradient(to bottom, #87CEEB 0%, #98D8C8 100%);
-            font-family: 'Arial Black'; 
-            overflow: hidden; 
-            cursor: none;
+        body { margin:0; overflow:hidden; background:#87CEEB; }
+        canvas { display:block; }
+
+        #ui {
+            position:fixed; top:20px; left:20px; color:#fff;
+            font-size:20px; background:rgba(0,0,0,0.5);
+            padding:10px; border-radius:10px;
         }
-        canvas { display: block; }
-        #ui { 
-            position: fixed; top: 20px; left: 20px; color: #fff; 
-            font-size: 28px; text-shadow: 3px 3px 6px #000; z-index: 1000;
-            background: rgba(0,0,0,0.5); padding: 15px; border-radius: 10px;
+
+        #controls {
+            position:fixed; top:20px; right:20px;
+            z-index:2000;
         }
-        #stamina { 
-            position: fixed; bottom: 30px; left: 30px; width: 350px; height: 40px;
-            background: rgba(0,0,0,0.8); border: 3px solid #00ff88; 
-            border-radius: 20px; z-index: 1000; overflow: hidden;
+
+        button {
+            padding:10px 15px;
+            margin:5px;
+            font-size:16px;
+            border:none;
+            border-radius:8px;
+            cursor:pointer;
         }
-        #stamina-fill { 
-            height: 100%; background: linear-gradient(90deg, #ff4444, #ffaa00, #44ff44);
-            width: 100%; transition: width 0.2s ease; box-shadow: 0 0 20px #00ff88;
+
+        #stamina {
+            position:fixed; bottom:20px; left:20px;
+            width:300px; height:25px;
+            background:#000; border-radius:10px;
         }
-        #instructions {
-            position: fixed; bottom: 30px; right: 30px; color: #fff;
-            font-size: 18px; text-align: right; z-index: 1000;
-            background: rgba(0,0,0,0.7); padding: 20px; border-radius: 15px;
+
+        #stamina-fill {
+            height:100%;
+            background:linear-gradient(90deg, red, yellow, green);
+            width:100%;
         }
-        #crosshair {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
-            width: 30px; height: 30px; border: 3px solid #fff; 
-            border-radius: 50%; z-index: 1000; pointer-events: none;
-            box-shadow: 0 0 20px #fff; animation: pulse 1s infinite;
-        }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
     </style>
 </head>
 <body>
-    <div id="ui">
-        <div>🏃 Speed: <span id="speed">0</span> km/h</div>
-        <div>⭐ Score: <span id="score">0</span></div>
-        <div>🎯 Catch: <span id="catches">0</span>/15</div>
-    </div>
-    
-    <div id="stamina">
-        <div id="stamina-fill"></div>
-    </div>
-    
-    <div id="crosshair"></div>
-    
-    <div id="instructions">
-        <strong>🎮 GTA STYLE RUNNING</strong><br>
-        WASD: Move | SHIFT: Sprint (Stamina)<br>
-        SPACE: Jump | MOUSE: Camera<br>
-        CLICK: Catch Green Enemies (+100pts)<br>
-        ESC/P: Pause | R: Reset
-    </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script>
-        // === ANIMATED RUNNING MAN GAME ===
-        let scene, camera, renderer, playerGroup, enemies = [];
-        let keys = {}, mouseLocked = false;
-        let game = {
-            velocity: {x:0, z:0, y:0}, stamina: 100, score: 0, catches: 0,
-            grounded: true, paused: false, time: 0,
-            yaw: 0, pitch: 0, speed: 0
-        };
-        
-        // 🔥 ANIMATED PLAYER SETUP
-        let leftArm, rightArm, leftLeg, rightLeg, torso, head;
-        
-        init();
-        spawnEnemies(15);
-        gameLoop();
-        
-        function init() {
-            // Scene & Camera
-            scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0x87CEEB, 20, 800);
-            camera = new THREE.PerspectiveCamera(80, innerWidth/innerHeight, 0.1, 2000);
-            camera.position.set(0, 6, 12);
-            
-            // Renderer
-            renderer = new THREE.WebGLRenderer({antialias: true});
-            renderer.setSize(innerWidth, innerHeight);
-            renderer.shadowMap.enabled = true;
-            renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            document.body.appendChild(renderer.domElement);
-            
-            // === ANIMATED PLAYER CHARACTER ===
-            playerGroup = new THREE.Group();
-            
-            // Torso
-            const torsoGeo = new THREE.CylinderGeometry(0.4, 0.5, 1.2, 8);
-            const torsoMat = new THREE.MeshLambertMaterial({color: 0xFF4444});
-            torso = new THREE.Mesh(torsoGeo, torsoMat);
-            torso.position.y = 1.1;
-            torso.castShadow = true;
-            playerGroup.add(torso);
-            
-            // Head
-            const headGeo = new THREE.SphereGeometry(0.3, 16, 16);
-            const headMat = new THREE.MeshLambertMaterial({color: 0xFFD700});
-            head = new THREE.Mesh(headGeo, headMat);
-            head.position.y = 2.1;
-            head.castShadow = true;
-            playerGroup.add(head);
-            
-            // ARMS - WILL ANIMATE
-            const armGeo = new THREE.CylinderGeometry(0.1, 0.13, 0.9, 8);
-            const armMat = new THREE.MeshLambertMaterial({color: 0x4A90E2});
-            
-            leftArm = new THREE.Mesh(armGeo, armMat);
-            leftArm.position.set(-0.65, 1.4, 0);
-            leftArm.castShadow = true;
-            playerGroup.add(leftArm);
-            
-            rightArm = new THREE.Mesh(armGeo, armMat);
-            rightArm.position.set(0.65, 1.4, 0);
-            rightArm.castShadow = true;
-            playerGroup.add(rightArm);
-            
-            // LEGS - WILL ANIMATE
-            const legGeo = new THREE.CylinderGeometry(0.14, 0.16, 1.1, 8);
-            const legMat = new THREE.MeshLambertMaterial({color: 0x2ECC71});
-            
-            leftLeg = new THREE.Mesh(legGeo, legMat);
-            leftLeg.position.set(-0.25, 0, 0);
-            leftLeg.castShadow = true;
-            playerGroup.add(leftLeg);
-            
-            rightLeg = new THREE.Mesh(legGeo, legMat);
-            rightLeg.position.set(0.25, 0, 0);
-            rightLeg.castShadow = true;
-            playerGroup.add(rightLeg);
-            
-            playerGroup.position.y = 1;
-            scene.add(playerGroup);
-            
-            // Ground
-            const groundGeo = new THREE.PlaneGeometry(2000, 2000);
-            const groundMat = new THREE.MeshLambertMaterial({color: 0x7EE57E});
-            const ground = new THREE.Mesh(groundGeo, groundMat);
-            ground.rotation.x = -Math.PI*0.5;
-            ground.receiveShadow = true;
-            scene.add(ground);
-            
-            // Buildings
-            for(let i=0; i<200; i++) {
-                const b = new THREE.Mesh(
-                    new THREE.BoxGeometry(
-                        4+Math.random()*8, 10+Math.random()*30, 4+Math.random()*8
-                    ),
-                    new THREE.MeshLambertMaterial({color: Math.random()*0xffffff})
-                );
-                b.position.set(
-                    (Math.random()-0.5)*1500, b.geometry.parameters[1]/2,
-                    (Math.random()-0.5)*1500
-                );
-                b.castShadow = b.receiveShadow = true;
-                scene.add(b);
-            }
-            
-            // Lights
-            scene.add(new THREE.AmbientLight(0xFFFFFF, 0.6));
-            const sun = new THREE.DirectionalLight(0xFFFFAA, 1.5);
-            sun.position.set(100, 200, 100);
-            sun.castShadow = true;
-            scene.add(sun);
-            
-            // Controls
-            document.addEventListener('keydown', e=>keys[e.code]=true);
-            document.addEventListener('keyup', e=>keys[e.code]=false);
-            document.addEventListener('mousemove', onMouse);
-            document.addEventListener('click', ()=>canvas.requestPointerLock());
-            addEventListener('resize', resize);
-            
-            canvas = renderer.domElement;
-        }
-        
-        function gameLoop() {
-            requestAnimationFrame(gameLoop);
-            if(!game.paused) update();
-            render();
-        }
-        
-        function update() {
-            game.time += 0.016;
-            
-            // === INPUT & MOVEMENT ===
-            const speed = keys['ShiftLeft'] && game.stamina>5 ? 0.45 : 0.25;
-            const forward = (keys['KeyW']||0) - (keys['KeyS']||0);
-            const right = (keys['KeyD']||0) - (keys['KeyA']||0);
-            
-            // Rotate movement to camera direction
-            const camRight = new THREE.Vector3();
-            camera.getWorldDirection(camRight);
-            camRight.y = 0; camRight.normalize();
-            const camForward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
-            camForward.y = 0; camForward.normalize();
-            
-            const moveX = camRight.x * right * speed + camForward.x * forward * speed;
-            const moveZ = camRight.z * right * speed + camForward.z * forward * speed;
-            
-            game.velocity.x += (moveX - game.velocity.x) * 0.12;
-            game.velocity.z += (moveZ - game.velocity.z) * 0.12;
-            
-            // Jump
-            if(keys['Space'] && game.grounded) {
-                game.velocity.y = 0.4;
-                game.grounded = false;
-            }
-            
-            // Gravity
-            game.velocity.y -= 0.018;
-            playerGroup.position.x += game.velocity.x;
-            playerGroup.position.z += game.velocity.z;
-            playerGroup.position.y += game.velocity.y;
-            
-            // Ground collision
-            if(playerGroup.position.y <= 1) {
-                playerGroup.position.y = 1;
-                game.velocity.y = 0;
-                game.grounded = true;
-            }
-            
-            // === ANIMATION SYSTEM 🔥 ===
-            const moveSpeed = Math.sqrt(game.velocity.x*game.velocity.x + game.velocity.z*game.velocity.z);
-            game.speed = moveSpeed * 200;
-            
-            // Run/Walk Animation
-            const animTime = game.time * (moveSpeed > 0.05 ? 12 : 6);
-            const legSwing = Math.sin(animTime) * 0.6;
-            const armSwing = Math.sin(animTime + Math.PI) * 0.5;
-            
-            // Animate Legs (RUNNING MOTION)
-            leftLeg.rotation.x = legSwing * 0.8;
-            leftLeg.rotation.z = Math.abs(legSwing) * 0.2;
-            leftLeg.position.y = Math.abs(legSwing) * 0.1;
-            
-            rightLeg.rotation.x = -legSwing * 0.8;
-            rightLeg.rotation.z = -Math.abs(legSwing) * 0.2;
-            rightLeg.position.y = Math.abs(legSwing * -1) * 0.1;
-            
-            // Animate Arms (OPPOSITE TO LEGS)
-            leftArm.rotation.x = armSwing * 0.6;
-            leftArm.rotation.z = -Math.abs(armSwing) * 0.3;
-            
-            rightArm.rotation.x = -armSwing * 0.6;
-            rightArm.rotation.z = Math.abs(armSwing) * 0.3;
-            
-            // Torso lean forward when running
-            torso.rotation.z = moveSpeed * 0.3;
-            head.rotation.z = moveSpeed * 0.1;
-            
-            // Stamina drain
-            if(keys['ShiftLeft']) game.stamina -= 2;
-            else game.stamina = Math.min(100, game.stamina + 1.2);
-            
-            game.score += Math.floor(moveSpeed * 15);
-            
-            // Pause
-            if(keys['Escape'] || keys['KeyP']) {
-                game.paused = !game.paused;
-                keys['Escape'] = keys['KeyP'] = false;
-            }
-            if(keys['KeyR']) reset();
-        }
-        
-        function spawnEnemies(count) {
-            for(let i=0; i<count; i++) {
-                const enemy = new THREE.Group();
-                const body = new THREE.Mesh(
-                    new THREE.SphereGeometry(0.7, 12, 12),
-                    new THREE.MeshLambertMaterial({color: 0x00FF88})
-                );
-                body.position.y = 1;
-                body.castShadow = true;
-                enemy.add(body);
-                
-                // Eyes
-                const eyeGeo = new THREE.SphereGeometry(0.12, 8, 8);
-                const eyeMat = new THREE.MeshLambertMaterial({color: 0xFF0000});
-                const eye1 = new THREE.Mesh(eyeGeo, eyeMat);
-                eye1.position.set(-0.25, 1.2, 0.6);
-                const eye2 = eye1.clone();
-                eye2.position.x = 0.25;
-                enemy.add(eye1, eye2);
-                
-                enemy.position.set(
-                    (Math.random()-0.5)*300,
-                    1,
-                    (Math.random()-0.5)*300
-                );
-                enemies.push(enemy);
-                scene.add(enemy);
-            }
-        }
-        
-        function render() {
-            // Camera Follow (Third Person)
-            const offset = new THREE.Vector3(0, 6, 12);
-            camera.position.lerp(
-                playerGroup.position.clone().add(offset), 0.1
-            );
-            camera.lookAt(playerGroup.position.clone().add(new THREE.Vector3(0,2,0)));
-            
-            // Update enemies
-            enemies.forEach((e,i) => {
-                const dist = e.position.distanceTo(playerGroup.position);
-                if(dist < 3 && mouseLocked) {
-                    scene.remove(e);
-                    enemies.splice(i,1);
-                    game.score += 150;
-                    game.catches++;
-                    setTimeout(()=>spawnEnemies(1), 1000);
-                } else {
-                    // Chase player
-                    const dir = playerGroup.position.clone().sub(e.position);
-                    dir.y = 0; dir.normalize();
-                    e.position.add(dir.multiplyScalar(0.015));
-                    e.lookAt(playerGroup.position);
-                }
-            });
-            
-            // UI
-            document.getElementById('speed').textContent = Math.floor(game.speed);
-            document.getElementById('score').textContent = game.score;
-            document.getElementById('catches').textContent = game.catches;
-            document.getElementById('stamina-fill').style.width = game.stamina+'%';
-            
-            renderer.render(scene, camera);
-        }
-        
-        function onMouse(e) {
-            if(document.pointerLockElement===canvas) {
-                game.yaw -= e.movementX * 0.003;
-                game.pitch -= e.movementY * 0.003;
-                game.pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, game.pitch));
-            }
-        }
-        
-        function resize() {
-            camera.aspect = innerWidth/innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(innerWidth, innerHeight);
-        }
-        
-        function reset() {
-            playerGroup.position.set(0,1,0);
-            game = {...game, velocity:{x:0,y:0,z:0}, score:0, stamina:100, catches:0};
-            enemies.forEach(e=>scene.remove(e));
-            enemies = [];
-            spawnEnemies(15);
-        }
-        
-        document.addEventListener('pointerlockchange', ()=> {
-            mouseLocked = document.pointerLockElement===canvas;
-        });
-    </script>
+<div id="ui">
+    Speed: <span id="speed">0</span><br>
+    Score: <span id="score">0</span>
+</div>
+
+<div id="controls">
+    <button onclick="startRun()">▶️ Run</button>
+    <button onclick="stopRun()">⏸ Stop</button>
+    <button onclick="freeMove()">🎮 Free Move</button>
+</div>
+
+<div id="stamina">
+    <div id="stamina-fill"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+let scene, camera, renderer, player;
+let keys = {};
+let mode = "stop";
+
+let game = {
+    velocity:{x:0,y:0,z:0},
+    stamina:100,
+    score:0,
+    grounded:true,
+    yaw:0,
+    pitch:0,
+    speed:0
+};
+
+init();
+loop();
+
+function init(){
+    scene = new THREE.Scene();
+
+    camera = new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,1000);
+    camera.position.set(0,5,10);
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(innerWidth,innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Player
+    player = new THREE.Mesh(
+        new THREE.BoxGeometry(1,2,1),
+        new THREE.MeshBasicMaterial({color:0xff0000})
+    );
+    player.position.y = 1;
+    scene.add(player);
+
+    // Ground
+    const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(1000,1000),
+        new THREE.MeshBasicMaterial({color:0x00aa00})
+    );
+    ground.rotation.x = -Math.PI/2;
+    scene.add(ground);
+
+    document.addEventListener('keydown',e=>keys[e.code]=true);
+    document.addEventListener('keyup',e=>keys[e.code]=false);
+    document.addEventListener('mousemove',onMouse);
+
+    window.addEventListener('resize',()=>{
+        camera.aspect = innerWidth/innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth,innerHeight);
+    });
+}
+
+// 🎮 BUTTON FUNCTIONS
+function startRun(){ mode="run"; }
+function stopRun(){ mode="stop"; }
+function freeMove(){ mode="free"; }
+
+function loop(){
+    requestAnimationFrame(loop);
+    update();
+    render();
+}
+
+function update(){
+
+    let forward = 0;
+    let right = 0;
+
+    if(mode==="run"){
+        forward = 1;
+    }
+    else if(mode==="free"){
+        forward = (keys['KeyW']||0) - (keys['KeyS']||0);
+        right = (keys['KeyD']||0) - (keys['KeyA']||0);
+    }
+
+    const speed = 0.2;
+
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    dir.y=0;
+    dir.normalize();
+
+    const rightDir = new THREE.Vector3(dir.z,0,-dir.x);
+
+    game.velocity.x += (dir.x*forward + rightDir.x*right)*speed;
+    game.velocity.z += (dir.z*forward + rightDir.z*right)*speed;
+
+    player.position.x += game.velocity.x;
+    player.position.z += game.velocity.z;
+
+    game.velocity.x *= 0.8;
+    game.velocity.z *= 0.8;
+
+    // Jump
+    if(keys['Space'] && game.grounded){
+        game.velocity.y = 0.3;
+        game.grounded=false;
+    }
+
+    game.velocity.y -= 0.02;
+    player.position.y += game.velocity.y;
+
+    if(player.position.y <= 1){
+        player.position.y=1;
+        game.velocity.y=0;
+        game.grounded=true;
+    }
+
+    game.speed = Math.abs(game.velocity.x)+Math.abs(game.velocity.z);
+    game.score += Math.floor(game.speed*10);
+
+    document.getElementById('speed').innerText = Math.floor(game.speed*100);
+    document.getElementById('score').innerText = game.score;
+    document.getElementById('stamina-fill').style.width = game.stamina+"%";
+}
+
+function render(){
+    camera.position.lerp(
+        player.position.clone().add(new THREE.Vector3(0,5,10)),0.1
+    );
+    camera.lookAt(player.position);
+
+    renderer.render(scene,camera);
+}
+
+function onMouse(e){
+    game.yaw -= e.movementX*0.002;
+    game.pitch -= e.movementY*0.002;
+
+    camera.rotation.order="YXZ";
+    camera.rotation.y = game.yaw;
+    camera.rotation.x = game.pitch;
+}
+</script>
+
 </body>
 </html>
