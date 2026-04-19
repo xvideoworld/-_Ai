@@ -1,620 +1,213 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GTA5 Fighter Hunter Money - Ultra Realistic AAA Game</title>
+    <title>🏃 Running Game - GTA Style</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; }
-        body { 
-            background: #000; 
-            font-family: 'Orbitron', monospace;
-            cursor: none;
+        body { margin: 0; background: #222; font-family: Arial; overflow: hidden; }
+        canvas { display: block; }
+        #ui { 
+            position: absolute; top: 20px; left: 20px; color: white; 
+            font-size: 24px; text-shadow: 2px 2px 4px #000; z-index: 100;
         }
-        #gameCanvas { 
-            width: 100vw; 
-            height: 100vh; 
-            background: radial-gradient(ellipse at center, #001122 0%, #000011 100%);
+        #stamina { 
+            position: absolute; bottom: 20px; left: 20px; width: 300px; height: 30px;
+            background: rgba(0,0,0,0.7); border: 2px solid #fff; z-index: 100;
         }
-        #hud {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 999;
+        #stamina-fill { 
+            height: 100%; background: linear-gradient(90deg, #ff4444, #44ff44);
+            width: 100%; transition: width 0.3s; 
         }
-        .hud-element {
-            position: absolute;
-            color: #00FF41;
-            font-weight: 900;
-            text-shadow: 0 0 20px #00FF41;
-            font-size: 24px;
-            background: rgba(0,0,0,0.8);
-            padding: 10px 20px;
-            border-radius: 10px;
-            border: 2px solid #00FF41;
-        }
-        #score { top: 20px; left: 20px; }
-        #money { top: 20px; right: 20px; }
-        #health { bottom: 30px; left: 20px; }
-        #wave { top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 48px; display: none; }
-        .controls {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            pointer-events: all;
-        }
-        .ctrl-btn {
-            width: 60px; height: 60px;
-            border: none;
-            border-radius: 50%;
-            background: linear-gradient(145deg, #00FF41, #00CC33);
-            color: #000;
-            font-weight: bold;
-            font-size: 20px;
-            cursor: pointer;
-            box-shadow: 0 10px 30px rgba(0,255,65,0.5);
-            border: 3px solid #00FF41;
-            transition: all 0.2s;
-        }
-        .ctrl-btn:active { transform: scale(0.95); }
-        .crosshair {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 30px;
-            height: 30px;
-            pointer-events: none;
-            z-index: 1000;
-        }
-        .crosshair::before, .crosshair::after {
-            content: '';
-            position: absolute;
-            background: #FF4444;
-            box-shadow: 0 0 15px #FF4444;
-        }
-        .crosshair::before { width: 4px; height: 30px; top: 0; left: 13px; }
-        .crosshair::after { width: 30px; height: 4px; left: 0; top: 13px; }
-        #gameOver {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.95);
-            color: #FF4444;
-            padding: 50px;
-            border-radius: 20px;
-            text-align: center;
-            font-size: 32px;
-            display: none;
-            border: 3px solid #FF4444;
-            box-shadow: 0 0 50px #FF4444;
+        #instructions {
+            position: absolute; bottom: 20px; right: 20px; color: #ccc;
+            font-size: 16px; text-align: right; z-index: 100;
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
-    
-    <div id="hud">
-        <div id="score" class="hud-element">স্কোর: 0</div>
-        <div id="money" class="hud-element">টাকা: $0</div>
-        <div id="health" class="hud-element">স্বাস্থ্য: 100%</div>
-        <div id="wave" class="hud-element">WAVE 1</div>
-        
-        <div class="crosshair"></div>
-        
-        <div class="controls">
-            <button class="ctrl-btn" id="fireBtn">🔥</button>
-            <button class="ctrl-btn" id="leftBtn">←</button>
-            <button class="ctrl-btn" id="rightBtn">→</button>
-            <button class="ctrl-btn" id="upgradeBtn">💰</button>
-        </div>
+    <div id="ui">
+        <div>Speed: <span id="speed">0</span> km/h</div>
+        <div>Score: <span id="score">0</span></div>
     </div>
-    
-    <div id="gameOver">
-        <h2>MISSION FAILED</h2>
-        <p>চূড়ান্ত স্কোর: <span id="finalScore">0</span></p>
-        <p>টাকা: $<span id="finalMoney">0</span></p>
-        <button class="ctrl-btn" style="width:200px; height:60px; font-size:24px;" onclick="restartGame()">
-            নতুন মিশন শুরু
-        </button>
+    <div id="stamina">
+        <div id="stamina-fill"></div>
+    </div>
+    <div id="instructions">
+        WASD: Move | SHIFT: Run | SPACE: Jump<br>
+        ESC: Pause | R: Reset
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // GTA5 লেভেল AAA Game Engine
-        class GTA5Engine {
-            constructor() {
-                this.canvas = document.getElementById('gameCanvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.resize();
-                
-                // গেম স্টেট
-                this.gameState = {
-                    score: 0,
-                    money: 0,
-                    health: 100,
-                    wave: 1,
-                    gunX: 0,
-                    gunAngle: 0,
-                    fireRate: 500,
-                    damage: 25,
-                    speed: 3,
-                    gameRunning: true,
-                    lastFire: 0,
-                    particles: [],
-                    bullets: [],
-                    planes: [],
-                    explosions: [],
-                    upgrades: { fireRate: 1, damage: 1, speed: 1 }
-                };
-                
-                this.setupControls();
-                this.gameLoop();
+        // === 3D RUNNING GAME ENGINE ===
+        let scene, camera, renderer, player, ground;
+        let keys = {}, mouse = { x: 0, y: 0 };
+        let velocity = { x: 0, z: 0, y: 0 };
+        let stamina = 100, score = 0, isGrounded = true;
+        let gamePaused = false;
+        
+        // Init
+        init();
+        animate();
+        
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x87CEEB, 50, 500);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 8, 15);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+            
+            // Player (Capsule)
+            const playerGeo = new THREE.CapsuleGeometry(0.5, 2, 4, 8);
+            const playerMat = new THREE.MeshLambertMaterial({ color: 0xff4444 });
+            player = new THREE.Mesh(playerGeo, playerMat);
+            player.position.y = 2;
+            player.castShadow = true;
+            scene.add(player);
+            
+            // Ground
+            const groundGeo = new THREE.PlaneGeometry(500, 500);
+            const groundMat = new THREE.MeshLambertMaterial({ color: 0x90EE90 });
+            ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            // City Buildings
+            for(let i=0; i<100; i++) {
+                const building = new THREE.Mesh(
+                    new THREE.BoxGeometry(5+Math.random()*10, 10+Math.random()*40, 5+Math.random()*10),
+                    new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff })
+                );
+                building.position.set(
+                    (Math.random()-0.5)*400, building.geometry.parameters.height/2,
+                    (Math.random()-0.5)*400
+                );
+                building.castShadow = true;
+                scene.add(building);
             }
             
-            resize() {
-                this.canvas.width = window.innerWidth;
-                this.canvas.height = window.innerHeight;
-                this.W = this.canvas.width;
-                this.H = this.canvas.height;
-            }
+            // Lights
+            const ambient = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambient);
+            const sun = new THREE.DirectionalLight(0xffffff, 1);
+            sun.position.set(50, 100, 50);
+            sun.castShadow = true;
+            sun.shadow.mapSize.width = 2048;
+            sun.shadow.mapSize.height = 2048;
+            scene.add(sun);
             
-            setupControls() {
-                document.getElementById('fireBtn').onclick = () => this.fire();
-                document.getElementById('leftBtn').onclick = () => this.gameState.gunX -= 20;
-                document.getElementById('rightBtn').onclick = () => this.gameState.gunX += 20;
-                document.getElementById('upgradeBtn').onclick = () => this.upgrade();
-                
-                window.addEventListener('resize', () => this.resize());
-                window.addEventListener('mousemove', (e) => {
-                    const rect = this.canvas.getBoundingClientRect();
-                    this.gameState.gunAngle = (e.clientX - rect.left - this.W/2) * 0.002;
-                });
-            }
-            
-            // GTA5 স্টাইল রিয়েলিস্টিক গান
-            drawRealisticGun(x, y, angle) {
-                this.ctx.save();
-                this.ctx.translate(x, y);
-                this.ctx.rotate(angle);
-                
-                // গান বডি (PBR মেটাল)
-                const gunGradient = this.ctx.createLinearGradient(-40, -10, 40, 10);
-                gunGradient.addColorStop(0, '#4A4A4A');
-                gunGradient.addColorStop(0.3, '#2A2A2A');
-                gunGradient.addColorStop(0.7, '#1A1A1A');
-                gunGradient.addColorStop(1, '#333333');
-                
-                // গান শ্যাডো
-                this.ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                this.ctx.shadowBlur = 25;
-                this.ctx.shadowOffsetX = 10;
-                this.ctx.shadowOffsetY = 10;
-                
-                // মেইন বডি
-                this.ctx.fillStyle = gunGradient;
-                this.ctx.beginPath();
-                this.ctx.moveTo(-45, -15);
-                this.ctx.lineTo(-45, 15);
-                this.ctx.lineTo(35, 12);
-                this.ctx.lineTo(45, 8);
-                this.ctx.lineTo(45, -8);
-                this.ctx.lineTo(35, -12);
-                this.ctx.closePath();
-                this.ctx.fill();
-                
-                // ব্যারেল
-                this.ctx.fillStyle = '#111';
-                this.ctx.shadowBlur = 15;
-                this.ctx.beginPath();
-                this.ctx.ellipse(50, 0, 25, 6, 0, 0, Math.PI*2);
-                this.ctx.fill();
-                
-                // মাজল ফ্ল্যাশ
-                if (this.gameState.lastFire > Date.now() - 100) {
-                    const flashGradient = this.ctx.createRadialGradient(50, 0, 0, 50, 0, 30);
-                    flashGradient.addColorStop(0, '#FFFF44');
-                    flashGradient.addColorStop(0.5, '#FFAA00');
-                    flashGradient.addColorStop(1, 'rgba(255,255,0,0)');
-                    this.ctx.shadowColor = '#FFFF44';
-                    this.ctx.shadowBlur = 40;
-                    this.ctx.fillStyle = flashGradient;
-                    this.ctx.beginPath();
-                    this.ctx.arc(50, 0, 30, 0, Math.PI*2);
-                    this.ctx.fill();
-                }
-                
-                // গান ডিটেইলস (GTA5 স্টাইল)
-                this.ctx.strokeStyle = '#666';
-                this.ctx.lineWidth = 1;
-                this.ctx.strokeRect(-42, -12, 8, 24); // ম্যাগাজিন
-                this.ctx.fillStyle = '#888';
-                this.ctx.fillRect(-42, -12, 4, 8); // ট্রিগার
-                this.ctx.fillStyle = '#CCC';
-                this.ctx.beginPath();
-                this.ctx.arc(10, 0, 3, 0, Math.PI*2); // সাইট
-                this.ctx.fill();
-                
-                this.ctx.restore();
-            }
-            
-            // রিয়েলিস্টিক বিমান (GTA5 ফাইটার জেট)
-            drawFighterJet(x, y, size, healthPercent) {
-                this.ctx.save();
-                this.ctx.translate(x, y);
-                this.ctx.scale(size, size);
-                
-                // বিমান শ্যাডো
-                this.ctx.shadowColor = 'rgba(0,0,0,0.6)';
-                this.ctx.shadowBlur = 20;
-                this.ctx.shadowOffsetY = 15;
-                
-                // বিমান বডি (কার্বন ফাইবার)
-                const jetGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 20, 40);
-                jetGradient.addColorStop(0, '#444444');
-                jetGradient.addColorStop(0.4, '#222222');
-                jetGradient.addColorStop(0.8, '#111111');
-                jetGradient.addColorStop(1, '#000000');
-                
-                this.ctx.fillStyle = jetGradient;
-                this.ctx.beginPath();
-                this.ctx.moveTo(0, -25);
-                this.ctx.lineTo(-40, 15);
-                this.ctx.lineTo(-25, 20);
-                this.ctx.lineTo(-15, 25);
-                this.ctx.lineTo(15, 25);
-                this.ctx.lineTo(25, 20);
-                this.ctx.lineTo(40, 15);
-                this.ctx.closePath();
-                this.ctx.fill();
-                
-                // উইংস
-                this.ctx.fillStyle = '#333';
-                this.ctx.beginPath();
-                this.ctx.moveTo(-30, 5);
-                this.ctx.lineTo(-60, 25);
-                this.ctx.lineTo(-40, 25);
-                this.ctx.lineTo(-20, 8);
-                this.ctx.closePath();
-                this.ctx.moveTo(30, 5);
-                this.ctx.lineTo(60, 25);
-                this.ctx.lineTo(40, 25);
-                this.ctx.lineTo(20, 8);
-                this.ctx.closePath();
-                this.ctx.fill();
-                
-                // ককপিট
-                const cockpitGradient = this.ctx.createRadialGradient(0, -5, 0, 0, -5, 15);
-                cockpitGradient.addColorStop(0, 'rgba(100,150,255,0.8)');
-                cockpitGradient.addColorStop(1, 'rgba(50,100,200,0.6)');
-                this.ctx.fillStyle = cockpitGradient;
-                this.ctx.beginPath();
-                this.ctx.arc(0, -12, 8, 0, Math.PI*2);
-                this.ctx.fill();
-                
-                // ইঞ্জিন নজল
-                this.ctx.fillStyle = '#FF6600';
-                this.ctx.shadowColor = '#FF8800';
-                this.ctx.shadowBlur = 15;
-                this.ctx.beginPath();
-                this.ctx.ellipse(35, 0, 12, 4, 0, 0, Math.PI*2);
-                this.ctx.ellipse(-35, 0, 12, 4, 0, 0, Math.PI*2);
-                this.ctx.fill();
-                
-                // ড্যামেজ ইফেক্ট
-                if (healthPercent < 1) {
-                    const damageGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, 30);
-                    damageGradient.addColorStop(0, `rgba(255,${100-healthPercent*100},0,0.8)`);
-                    damageGradient.addColorStop(1, 'rgba(255,0,0,0)');
-                    this.ctx.fillStyle = damageGradient;
-                    this.ctx.globalCompositeOperation = 'multiply';
-                    this.ctx.beginPath();
-                    this.ctx.arc(0, 0, 25, 0, Math.PI*2);
-                    this.ctx.fill();
-                    this.ctx.globalCompositeOperation = 'source-over';
-                }
-                
-                this.ctx.restore();
-            }
-            
-            // রিয়েলিস্টিক বুলেট
-            drawBullet(x, y) {
-                this.ctx.save();
-                this.ctx.translate(x, y);
-                this.ctx.shadowColor = '#FFFF44';
-                this.ctx.shadowBlur = 10;
-                
-                // ট্রেইল
-                const trailGradient = this.ctx.createLinearGradient(0, -20, 0, 0);
-                trailGradient.addColorStop(0, 'rgba(255,255,255,0.8)');
-                trailGradient.addColorStop(1, 'rgba(255,255,100,0)');
-                this.ctx.fillStyle = trailGradient;
-                this.ctx.fillRect(-1, -20, 2, 20);
-                
-                // বুলেট হেড
-                const headGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, 3);
-                headGradient.addColorStop(0, '#FFFF44');
-                headGradient.addColorStop(1, '#DDDD00');
-                this.ctx.fillStyle = headGradient;
-                this.ctx.shadowBlur = 15;
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, 3, 0, Math.PI*2);
-                this.ctx.fill();
-                
-                this.ctx.restore();
-            }
-            
-            // GTA5 স্টাইল এক্সপ্লোশন
-            drawExplosion(x, y, age) {
-                const intensity = Math.sin(age * 0.3) * (1 - age/100);
-                if (intensity <= 0) return;
-                
-                this.ctx.save();
-                this.ctx.translate(x, y);
-                this.ctx.shadowColor = '#FF4400';
-                this.ctx.shadowBlur = 50 * intensity;
-                
-                // ফায়ারবল
-                const fireGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, 60*intensity);
-                fireGradient.addColorStop(0, `rgba(255,${120+Math.sin(age*0.2)*30},0,${intensity})`);
-                fireGradient.addColorStop(0.4, `rgba(255,${80+Math.sin(age*0.15)*40},0,${intensity*0.7})`);
-                fireGradient.addColorStop(0.8, `rgba(255,50,0,${intensity*0.3})`);
-                fireGradient.addColorStop(1, 'rgba(100,0,0,0)');
-                
-                this.ctx.fillStyle = fireGradient;
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, 60*intensity, 0, Math.PI*2);
-                this.ctx.fill();
-                
-                // ডিব্রিস
-                for(let i = 0; i < 12; i++) {
-                    this.ctx.save();
-                    this.ctx.translate(
-                        Math.cos(i*0.5 + age*0.1) * (25 + i*3) * intensity,
-                        Math.sin(i*0.5 + age*0.1) * (25 + i*3) * intensity
-                    );
-                    this.ctx.rotate(age*0.05 + i);
-                    const debrisGradient = this.ctx.createLinearGradient(0, -5, 0, 5);
-                    debrisGradient.addColorStop(0, '#FF8800');
-                    debrisGradient.addColorStop(1, '#CC6600');
-                    this.ctx.fillStyle = debrisGradient;
-                    this.ctx.shadowBlur = 10;
-                    this.ctx.fillRect(-2, -5, 4, 10);
-                    this.ctx.restore();
-                }
-                
-                // শকওয়েভ
-                this.ctx.strokeStyle = `rgba(255,255,255,${intensity*0.5})`;
-                this.ctx.lineWidth = 3 * intensity;
-                this.ctx.shadowColor = 'white';
-                this.ctx.shadowBlur = 20 * intensity;
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, 80 * intensity, 0, Math.PI*2);
-                this.ctx.stroke();
-                
-                this.ctx.restore();
-            }
-            
-            // রিয়েলিস্টিক স্কাইবক্স (GTA5 স্টাইল)
-            drawSky() {
-                const skyGradient = this.ctx.createLinearGradient(0, 0, 0, this.H);
-                skyGradient.addColorStop(0, '#001133');
-                skyGradient.addColorStop(0.3, '#003366');
-                skyGradient.addColorStop(0.6, '#004488');
-                skyGradient.addColorStop(1, '#000022');
-                this.ctx.fillStyle = skyGradient;
-                this.ctx.fillRect(0, 0, this.W, this.H);
-                
-                // ক্লাউডস (Volumetric)
-                for(let i = 0; i < 8; i++) {
-                    const x = (i * 300 + Date.now() * 0.02) % (this.W + 200) - 100;
-                    const y = 100 + Math.sin(Date.now() * 0.001 + i) * 30;
-                    const cloudGradient = this.ctx.createRadialGradient(x+50, y, 0, x+50, y, 120);
-                    cloudGradient.addColorStop(0, 'rgba(255,255,255,0.9)');
-                    cloudGradient.addColorStop(0.7, 'rgba(255,255,255,0.4)');
-                    cloudGradient.addColorStop(1, 'rgba(255,255,255,0)');
-                    
-                    this.ctx.shadowColor = 'white';
-                    this.ctx.shadowBlur = 30;
-                    this.ctx.fillStyle = cloudGradient;
-                    this.ctx.beginPath();
-                    this.ctx.arc(x, y+20, 80, 0, Math.PI*2);
-                    this.ctx.arc(x+60, y+10, 100, 0, Math.PI*2);
-                    this.ctx.arc(x+120, y+25, 80, 0, Math.PI*2);
-                    this.ctx.fill();
-                }
-            }
-            
-            fire() {
-                if (!this.gameState.gameRunning || Date.now() - this.gameState.lastFire < this.gameState.fireRate / this.gameState.upgrades.fireRate) 
-                    return;
-                
-                this.gameState.lastFire = Date.now();
-                
-                const angle = this.gameState.gunAngle;
-                const speed = 15;
-                const bx = this.W/2 + this.gameState.gunX + Math.cos(angle) * 60;
-                const by = this.H - 150 + Math.sin(angle) * 60;
-                
-                this.gameState.bullets.push({
-                    x: bx,
-                    y: by,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed,
-                    life: 120
-                });
-            }
-            
-            upgrade() {
-                if (this.gameState.money >= 1000) {
-                    this.gameState.money -= 1000;
-                    const upgrades = ['fireRate', 'damage', 'speed'];
-                    const upgradeType = upgrades[Math.floor(Math.random() * upgrades.length)];
-                    this.gameState.upgrades[upgradeType]++;
-                }
-            }
-            
-            update() {
-                if (!this.gameState.gameRunning) return;
-                
-                // গান মুভমেন্ট লিমিট
-                this.gameState.gunX *= 0.9;
-                this.gameState.gunX = Math.max(-200, Math.min(200, this.gameState.gunX));
-                
-                // বুলেট আপডেট
-                for(let i = this.gameState.bullets.length - 1; i >= 0; i--) {
-                    const b = this.gameState.bullets[i];
-                    b.x += b.vx;
-                    b.y += b.vy;
-                    b.life--;
-                    
-                    if (b.life <= 0 || b.y < -50 || b.x < -50 || b.x > this.W + 50) {
-                        this.gameState.bullets.splice(i, 1);
-                        continue;
-                    }
-                    
-                    // কলিশন চেক
-                    for(let j = this.gameState.planes.length - 1; j >= 0; j--) {
-                        const p = this.gameState.planes[j];
-                        const dx = b.x - p.x;
-                        const dy = b.y - p.y;
-                        if (Math.sqrt(dx*dx + dy*dy) < p.size * 25) {
-                            p.health -= this.gameState.damage * this.gameState.upgrades.damage;
-                            this.gameState.bullets.splice(i, 1);
-                            
-                            if (p.health <= 0) {
-                                // বিমান ধ্বংস
-                                this.gameState.score += 100 * this.gameState.wave;
-                                this.gameState.money += 500 * this.gameState.wave;
-                                this.gameState.explosions.push({
-                                    x: p.x,
-                                    y: p.y,
-                                    age: 0,
-                                    size: p.size
-                                });
-                                this.gameState.planes.splice(j, 1);
-                            }
-                            break;
-                        }
-                    }
-                }
-                
-                // বিমান স্পন ও আপডেট
-                if (Math.random() < 0.02 + this.gameState.wave * 0.005) {
-                    this.gameState.planes.push({
-                        x: Math.random() * this.W,
-                        y: -50,
-                        vx: (Math.random() - 0.5) * 2,
-                        size: 0.8 + Math.random() * 0.4,
-                        health: 100,
-                        healthMax: 100
-                    });
-                }
-                
-                this.gameState.planes.forEach(p => {
-                    p.y += 1.5 + this.gameState.wave * 0.1;
-                    p.x += p.vx;
-                    
-                    // প্লেয়ার হিট
-                    if (p.y > this.H - 200 && Math.abs(p.x - (this.W/2 + this.gameState.gunX)) < 100) {
-                        this.gameState.health -= 0.1;
-                        if (this.gameState.health <= 0) {
-                            this.gameOver();
-                        }
-                    }
-                    
-                    if (p.y > this.H + 50) {
-                        this.gameState.planes.splice(this.gameState.planes.indexOf(p), 1);
-                    }
-                });
-                
-                // এক্সপ্লোশন
-                for(let i = this.gameState.explosions.length - 1; i >= 0; i--) {
-                    const exp = this.gameState.explosions[i];
-                    exp.age++;
-                    if (exp.age > 100) {
-                        this.gameState.explosions.splice(i, 1);
-                        continue;
-                    }
-                }
-                
-                // ওয়েভ চেক
-                if (this.gameState.planes.length === 0 && Math.random() < 0.01) {
-                    this.gameState.wave++;
-                    document.getElementById('wave').style.display = 'block';
-                    setTimeout(() => {
-                        document.getElementById('wave').style.display = 'none';
-                    }, 2000);
-                }
-                
-                // UI আপডেট
-                document.getElementById('score').textContent = `স্কোর: ${this.gameState.score}`;
-                document.getElementById('money').textContent = `টাকা: $${this.gameState.money}`;
-                document.getElementById('health').textContent = `স্বাস্থ্য: ${Math.floor(this.gameState.health)}%`;
-                document.getElementById('wave').textContent = `WAVE ${this.gameState.wave}`;
-            }
-            
-            render() {
-                // ক্লিয়ার
-                this.ctx.clearRect(0, 0, this.W, this.H);
-                
-                // স্কাই
-                this.drawSky();
-                
-                // বিমান
-                this.gameState.planes.forEach(p => {
-                    this.drawFighterJet(p.x, p.y, p.size, p.health / p.healthMax);
-                });
-                
-                // বুলেট
-                this.gameState.bullets.forEach(b => {
-                    this.drawBullet(b.x, b.y);
-                });
-                
-                // এক্সপ্লোশন
-                this.gameState.explosions.forEach(exp => {
-                    this.drawExplosion(exp.x, exp.y, exp.age);
-                });
-                
-                // গান
-                this.drawRealisticGun(this.W/2 + this.gameState.gunX, this.H - 100, this.gameState.gunAngle);
-                
-                // পার্টিকেলস (মাজল স্মোক)
-                this.gameState.particles.forEach((p, i) => {
-                    p.life--;
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    p.vy += 0.05;
-                    if (p.life <= 0) this.gameState.particles.splice(i, 1);
-                });
-            }
-            
-            gameLoop() {
-                this.update();
-                this.render();
-                requestAnimationFrame(() => this.gameLoop());
-            }
-            
-            gameOver() {
-                this.gameState.gameRunning = false;
-                document.getElementById('finalScore').textContent = this.gameState.score;
-                document.getElementById('finalMoney').textContent = this.gameState.money;
-                document.getElementById('gameOver').style.display = 'block';
-            }
+            // Events
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            document.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('resize', onResize);
         }
         
-        // গেম স্টার্ট
-        const game = new GTA5Engine();
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if(!gamePaused) updateGame();
+            renderer.render(scene, camera);
+        }
         
-        window.restartGame = () => {
-            location.reload();
-        };
+        function updateGame() {
+            // Input
+            const speed = keys['ShiftLeft'] ? 0.3 : 0.15;
+            const forward = keys['KeyW'] ? 1 : 0;
+            const backward = keys['KeyS'] ? -1 : 0;
+            const left = keys['KeyA'] ? -1 : 0;
+            const right = keys['KeyD'] ? 1 : 0;
+            
+            // Movement
+            const moveX = (left + right) * speed;
+            const moveZ = (forward + backward) * speed;
+            
+            velocity.x += (moveX - velocity.x) * 0.1;
+            velocity.z += (moveZ - velocity.z) * 0.1;
+            
+            // Jump
+            if(keys['Space'] && isGrounded) {
+                velocity.y = 0.25;
+                isGrounded = false;
+            }
+            
+            // Gravity
+            velocity.y -= 0.015;
+            player.position.x += velocity.x;
+            player.position.z += velocity.z;
+            player.position.y += velocity.y;
+            
+            // Ground collision
+            if(player.position.y <= 1) {
+                player.position.y = 1;
+                velocity.y = 0;
+                isGrounded = true;
+            }
+            
+            // Stamina
+            if(keys['ShiftLeft'] && stamina > 0) {
+                stamina -= 0.5;
+            } else {
+                stamina = Math.min(100, stamina + 0.3);
+            }
+            
+            // Camera follow
+            const idealOffset = new THREE.Vector3(0, 8, 15);
+            const camTarget = player.position.clone();
+            camTarget.y += 2;
+            camera.lookAt(camTarget);
+            
+            // Score
+            score += Math.floor(Math.sqrt(Math.abs(velocity.x)+Math.abs(velocity.z))*10);
+            
+            // UI Update
+            document.getElementById('speed').textContent = Math.floor(Math.sqrt(velocity.x*velocity.x + velocity.z*velocity.z)*100);
+            document.getElementById('score').textContent = score;
+            document.getElementById('stamina-fill').style.width = stamina + '%';
+            
+            // Reset
+            if(keys['KeyR']) resetGame();
+        }
+        
+        function onKeyDown(e) { keys[e.code] = true; }
+        function onKeyUp(e) { keys[e.code] = false; }
+        function onMouseMove(e) { 
+            if(document.pointerLockElement === renderer.domElement) {
+                player.rotation.y -= e.movementX * 0.002;
+            }
+        }
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        function resetGame() {
+            player.position.set(0,1,0);
+            velocity = {x:0,y:0,z:0};
+            stamina = 100;
+            score = 0;
+        }
+        
+        // Pointer Lock
+        renderer.domElement.addEventListener('click', () => {
+            renderer.domElement.requestPointerLock();
+        });
+        
+        document.addEventListener('keydown', (e) => {
+            if(e.code === 'Escape') {
+                document.exitPointerLock();
+            }
+        });
     </script>
 </body>
     </html>
